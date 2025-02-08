@@ -1,30 +1,29 @@
-import React, { PropsWithChildren } from "react";
-import { FC } from "react";
-import { Box, Text } from "zmp-ui";
-import { BoxProps } from "zmp-ui/box";
+import { PropsWithChildren, ReactNode } from "react";
+import { ChevronRight } from "./vectors";
+import { Link, To } from "react-router-dom";
+import TransitionLink from "./transition-link";
 
-export interface SectionProps extends BoxProps {
-  title: string;
-  padding?: "all" | "none" | "title-only";
+export interface SectionProps {
+  title: ReactNode;
+  viewMoreTo?: To;
 }
 
-export const Section: FC<PropsWithChildren<SectionProps>> = ({
-  children,
-  title,
-  padding = "all",
-  ...props
-}) => {
+export default function Section(props: PropsWithChildren<SectionProps>) {
   return (
-    <Box
-      className={`bg-background ${padding === "all" ? "p-4 space-y-4" : ""} ${
-        padding === "title-only" ? "py-4 space-y-4" : ""
-      }`}
-      {...props}
-    >
-      <Text.Title className={`${padding === "title-only" ? "px-4" : ""}`}>
-        {title}
-      </Text.Title>
-      {children}
-    </Box>
+    <div className="bg-background pt-1">
+      <div className="flex items-center justify-between px-2">
+        <div className="text-sm font-medium p-2 truncate">{props.title}</div>
+        {props.viewMoreTo && (
+          <TransitionLink
+            className="text-sm font-medium text-primary flex items-center space-x-1 p-2 cursor-pointer flex-none"
+            to={props.viewMoreTo}
+          >
+            <span>Xem thêm</span>
+            <ChevronRight />
+          </TransitionLink>
+        )}
+      </div>
+      {props.children}
+    </div>
   );
-};
+}

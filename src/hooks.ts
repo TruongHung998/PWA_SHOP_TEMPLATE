@@ -1,72 +1,135 @@
-import _ from "lodash";
-import { useEffect, useRef, useState } from "react";
-import { matchStatusBarColor } from "utils/device";
-import { EventName, events, Payment } from "zmp-sdk";
-import { useNavigate, useSnackbar } from "zmp-ui";
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { MutableRefObject, useLayoutEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
+import { UIMatch, useMatches } from 'react-router-dom';
+import { cartState, cartTotalState } from '@/state';
+import { Cart, CartItem, Product, SelectedOptions } from 'types';
+import { getDefaultOptions, isIdentical } from '@/utils/cart';
+import { getConfig } from '@/utils/template';
 
-export function useMatchStatusTextColor(visible?: boolean) {
-  const changedRef = useRef(false);
-  useEffect(() => {
-    if (changedRef.current) {
-      matchStatusBarColor(visible ?? false);
-    } else {
-      changedRef.current = true;
-    }
-  }, [visible]);
-}
-
-const originalScreenHeight = window.innerHeight;
-
-export function useVirtualKeyboardVisible() {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const detectKeyboardOpen = () => {
-      setVisible(window.innerHeight + 160 < originalScreenHeight);
-    };
-    window.addEventListener("resize", detectKeyboardOpen);
-    return () => {
-      window.removeEventListener("resize", detectKeyboardOpen);
-    };
-  }, []);
-
-  return visible;
-}
-
-export const useHandlePayment = () => {
-  const navigate = useNavigate();
-  useEffect(() => {
-    events.on(EventName.OpenApp, (data) => {
-      if (data?.path) {
-        navigate(data?.path, {
-          state: data,
-        });
-      }
-    });
-
-    events.on(EventName.OnDataCallback, (resp) => {
-      const { appTransID, eventType } = resp;
-      if (appTransID || eventType === "PAY_BY_CUSTOM_METHOD") {
-        navigate("/result", {
-          state: resp,
-        });
-      }
-    });
-
-    events.on(EventName.PaymentClose, (data = {}) => {
-      const { zmpOrderId } = data;
-      navigate("/result", {
-        state: { data: { zmpOrderId } },
+export function useRealHeight(
+  element: MutableRefObject<HTMLDivElement | null>,
+  defaultValue?: number,
+) {
+  const [height, setHeight] = useState(defaultValue ?? 0);
+  useLayoutEffect(() => {
+    if (element.current && typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver((entries: ResizeObserverEntry[]) => {
+        const [{ contentRect }] = entries;
+        setHeight(contentRect.height);
       });
+      ro.observe(element.current);
+      return () => ro.disconnect();
+    }
+    return () => {};
+  }, [element.current]);
+
+  if (typeof ResizeObserver === 'undefined') {
+    return -1;
+  }
+  return height;
+}
+
+export function useAddToCart(product: Product, editingCartItemId?: number) {
+  const [cart, setCart] = useAtom(cartState);
+  const editing = useMemo(
+    () => cart.find((item) => item.id === editingCartItemId),
+    [cart, editingCartItemId],
+  );
+
+  const [options, setOptions] = useState<SelectedOptions>(
+    editing ? editing.options : getDefaultOptions(product),
+  );
+
+  function handleReplace(quantity: number, cart: Cart, editing: CartItem) {
+    if (quantity === 0) {
+      // the user wants to remove this item.
+      cart.splice(cart.indexOf(editing), 1);
+    } else {
+      const existed = cart.find(
+        (item) =>
+          item.id != editingCartItemId &&
+          item.product.id === product.id &&
+          isIdentical(item.options, options),
+      );
+      if (existed) {
+        // there's another identical item in the cart; let's remove it and update the quantity in the editing item.
+        cart.splice(cart.indexOf(existed), 1);
+      }
+      cart.splice(cart.indexOf(editing), 1, {
+        ...editing,
+        options,
+        quantity: existed
+          ? existed.quantity + quantity // updating the quantity of the identical item.
+          : quantity,
+      });
+    }
+  }
+
+  function handleAppend(quantity: number, cart: Cart) {
+    const existed = cart.find(
+      (item) => item.product.id === product.id && isIdentical(item.options, options),
+    );
+    if (existed) {
+      // merging with another identical item in the cart.
+      cart.splice(cart.indexOf(existed), 1, {
+        ...existed,
+        quantity: existed.quantity + quantity,
+      });
+    } else {
+      // this item is new, appending it to the cart.
+      cart.push({
+        id: cart.length + 1,
+        product,
+        options,
+        quantity,
+      });
+    }
+  }
+
+  const addToCart = (quantity: number) => {
+    setCart((cart) => {
+      const res = [...cart];
+      if (editing) {
+        handleReplace(quantity, res, editing);
+      } else {
+        handleAppend(quantity, res);
+      }
+      return res;
     });
-  }, []);
-};
+  };
+
+  return { addToCart, options, setOptions };
+}
+
+export function useCustomerSupport() {
+  return () => {};
+}
 
 export function useToBeImplemented() {
-  const snackbar = useSnackbar();
   return () =>
-    snackbar.openSnackbar({
-      type: "success",
-      text: "Chức năng dành cho các bên tích hợp phát triển...",
+    toast('Chức năng dành cho các bên tích hợp phát triển...', {
+      icon: '🛠️',
     });
+}
+
+export function useCheckout() {
+  const { totalAmount } = useAtomValue(cartTotalState);
+  const setCart = useSetAtom(cartState);
+  return async () => {};
+}
+
+export function useRouteHandle() {
+  const matches = useMatches() as UIMatch<
+    undefined,
+    {
+      title?: string | Function;
+      logo?: boolean;
+      back?: boolean;
+      scrollRestoration?: number;
+    }
+  >[];
+  const lastMatch = matches[matches.length - 1];
+
+  return [lastMatch.handle, lastMatch, matches] as const;
 }

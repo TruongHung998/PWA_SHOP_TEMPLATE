@@ -1,26 +1,34 @@
-import React, { FC } from "react";
-import { Divider } from "components/divider";
-import { Header, Page } from "zmp-ui";
-import { CartItems } from "./cart-items";
-import { CartPreview } from "./preview";
-import { TermsAndPolicies } from "./term-and-policies";
-import { Delivery } from "./delivery";
-import { useVirtualKeyboardVisible } from "hooks";
+import CartList from "./cart-list";
+import ApplyVoucher from "./apply-voucher";
+import CartSummary from "./cart-summary";
+import HorizontalDivider from "@/components/horizontal-divider";
+import { useAtomValue } from "jotai";
+import { cartState } from "@/state";
+import { EmptyBoxIcon } from "@/components/vectors";
+import SelectAll from "./select-all";
 
-const CartPage: FC = () => {
-  const keyboardVisible = useVirtualKeyboardVisible();
+export default function CartPage() {
+  const cart = useAtomValue(cartState);
 
+  if (!cart.length) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center space-y-8">
+        <EmptyBoxIcon />
+        <div className="text-2xs text-inactive text-center">
+          Không có sản phẩm trong giỏ hàng
+        </div>
+      </div>
+    );
+  }
   return (
-    <Page className="flex flex-col">
-      <Header title="Giỏ hàng" showBackIcon={false} />
-      <CartItems />
-      <Delivery />
-      <Divider size={12} />
-      <TermsAndPolicies />
-      <Divider size={32} className="flex-1" />
-      {!keyboardVisible && <CartPreview />}
-    </Page>
+    <div className="w-full h-full flex flex-col">
+      <SelectAll />
+      <HorizontalDivider />
+      <CartList />
+      <HorizontalDivider />
+      <ApplyVoucher />
+      <HorizontalDivider />
+      <CartSummary />
+    </div>
   );
-};
-
-export default CartPage;
+}

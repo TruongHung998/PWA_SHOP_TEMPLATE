@@ -1,48 +1,28 @@
-import React, { FC } from "react";
-import { Route, Routes } from "react-router";
-import { Box } from "zmp-ui";
-import { Navigation } from "./navigation";
-import HomePage from "pages/index";
-import CategoryPage from "pages/category";
-import CartPage from "pages/cart";
-import NotificationPage from "pages/notification";
-import ProfilePage from "pages/profile";
-import SearchPage from "pages/search";
-import CheckoutResultPage from "pages/result";
-import { getSystemInfo } from "zmp-sdk";
+import { Outlet } from "react-router-dom";
+import Header from "./header";
+import Footer from "./footer";
+import { Suspense } from "react";
+import { PageSkeleton } from "./skeleton";
+import { Toaster } from "react-hot-toast";
 import { ScrollRestoration } from "./scroll-restoration";
-import { useHandlePayment } from "hooks";
 
-if (import.meta.env.DEV) {
-  document.body.style.setProperty("--zaui-safe-area-inset-top", "24px");
-} else if (getSystemInfo().platform === "android") {
-  const statusBarHeight =
-    window.ZaloJavaScriptInterface?.getStatusBarHeight() ?? 0;
-  const androidSafeTop = Math.round(statusBarHeight / window.devicePixelRatio);
-  document.body.style.setProperty(
-    "--zaui-safe-area-inset-top",
-    `${androidSafeTop}px`
+export default function Layout() {
+  return (
+    <div className="w-screen h-screen flex flex-col bg-background text-foreground">
+      <Header />
+      <div className="flex-1 overflow-y-auto">
+        <Suspense fallback={<PageSkeleton />}>
+          <Outlet />
+        </Suspense>
+      </div>
+      <Footer />
+      <Toaster
+        containerClassName="toast-container"
+        containerStyle={{
+          top: "calc(50% - 24px)",
+        }}
+      />
+      <ScrollRestoration />
+    </div>
   );
 }
-
-export const Layout: FC = () => {
-  useHandlePayment();
-
-  return (
-    <Box flex flexDirection="column" className="h-screen">
-      <ScrollRestoration />
-      <Box className="flex-1 flex flex-col overflow-hidden">
-        <Routes>
-          <Route path="/" element={<HomePage />}></Route>
-          <Route path="/search" element={<SearchPage />}></Route>
-          <Route path="/category" element={<CategoryPage />}></Route>
-          <Route path="/notification" element={<NotificationPage />}></Route>
-          <Route path="/cart" element={<CartPage />}></Route>
-          <Route path="/profile" element={<ProfilePage />}></Route>
-          <Route path="/result" element={<CheckoutResultPage />}></Route>
-        </Routes>
-      </Box>
-      <Navigation />
-    </Box>
-  );
-};

@@ -1,6 +1,6 @@
-import React from "react";
+import { useRouteHandle } from "@/hooks";
 import { FC, useEffect } from "react";
-import { useLocation } from "react-router";
+import { useLocation, useMatches } from "react-router";
 
 const scrollPositions = {};
 
@@ -26,22 +26,27 @@ function findElementWithScrollbar(rootElement: Element = document.body) {
 
 export const ScrollRestoration: FC = () => {
   const location = useLocation();
+  const [handle] = useRouteHandle();
 
   useEffect(() => {
     // Look for the main scroll element on the page
     const content = findElementWithScrollbar();
     if (content) {
-      const key = `${location.pathname}${location.search}`;
-      if (scrollPositions[key]) {
-        // Scroll to the previous position on this new location
-        content.scrollTo(0, scrollPositions[key]);
+      if (handle.scrollRestoration !== undefined) {
+        content.scrollTo(0, handle.scrollRestoration);
+      } else {
+        const key = `${location.pathname}${location.search}`;
+        if (scrollPositions[key]) {
+          // Scroll to the previous position on this new location
+          content.scrollTo(0, scrollPositions[key]);
+        }
+        const saveScrollPosition = (e: Event) => {
+          // Save position on scroll
+          scrollPositions[key] = content.scrollTop;
+        };
+        content.addEventListener("scroll", saveScrollPosition);
+        return () => content.removeEventListener("scroll", saveScrollPosition);
       }
-      const saveScrollPosition = (e: Event) => {
-        // Save position on scroll
-        scrollPositions[key] = content.scrollTop;
-      };
-      content.addEventListener("scroll", saveScrollPosition);
-      return () => content.removeEventListener("scroll", saveScrollPosition);
     }
     return () => {};
   }, [location]);
